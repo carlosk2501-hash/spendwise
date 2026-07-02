@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#0f172a">
+  <meta name="description" content="Track expenses by scanning receipts and logging income">
+  <title>SpendWise — Expense Tracker</title>
+  <link rel="stylesheet" href="css/styles.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div id="app">
+    <header class="header">
+      <div class="header-brand">
+        <div class="logo" aria-hidden="true">💰</div>
+        <div>
+          <h1>SpendWise</h1>
+          <p class="subtitle">Receipt & expense tracker</p>
+        </div>
+      </div>
+      <div class="header-actions">
+        <div class="header-balance" id="headerBalance">
+          <span class="balance-label">Balance</span>
+          <span class="balance-amount" id="balanceAmount">$0.00</span>
+        </div>
+        <button type="button" class="btn-icon settings-btn" id="btnOpenSettings" title="Grok AI Settings" aria-label="Settings">⚙️</button>
+      </div>
+    </header>
+
+    <nav class="nav-tabs" role="tablist">
+      <button class="nav-tab active" data-tab="dashboard" role="tab" aria-selected="true">
+        <span class="tab-icon">📊</span>
+        <span>Dashboard</span>
+      </button>
+      <button class="nav-tab" data-tab="scan" role="tab" aria-selected="false">
+        <span class="tab-icon">📷</span>
+        <span>Scan</span>
+      </button>
+      <button class="nav-tab" data-tab="records" role="tab" aria-selected="false">
+        <span class="tab-icon">✏️</span>
+        <span>Records</span>
+      </button>
+      <button class="nav-tab" data-tab="history" role="tab" aria-selected="false">
+        <span class="tab-icon">📋</span>
+        <span>History</span>
+      </button>
+    </nav>
+
+    <main class="main-content">
+      <!-- Dashboard -->
+      <section id="tab-dashboard" class="tab-panel active" role="tabpanel">
+        <div class="stats-grid">
+          <div class="stat-card amount">
+            <span class="stat-label">Total Amount</span>
+            <span class="stat-value" id="totalAmount">$0.00</span>
+          </div>
+          <div class="stat-card expense">
+            <span class="stat-label">Total Expenses</span>
+            <span class="stat-value" id="totalExpenses">$0.00</span>
+          </div>
+        </div>
+
+        <div class="card">
+          <h2>Spending by Category</h2>
+          <div id="categoryChart" class="category-chart">
+            <p class="empty-state">No expenses yet. Scan a receipt to get started.</p>
+          </div>
+        </div>
+
+        <div class="card">
+          <h2>Recent Activity</h2>
+          <div id="recentActivity" class="activity-list">
+            <p class="empty-state">No transactions yet.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- Scan Receipt -->
+      <section id="tab-scan" class="tab-panel" role="tabpanel" hidden>
+        <div class="scan-options">
+          <button class="scan-btn primary" id="btnOpenCamera">
+            <span class="scan-btn-icon">📸</span>
+            <span>Take Photo</span>
+            <span class="scan-btn-hint">Use your camera</span>
+          </button>
+          <label class="scan-btn secondary" for="fileUpload">
+            <span class="scan-btn-icon">📁</span>
+            <span>Upload Image</span>
+            <span class="scan-btn-hint">JPG, PNG, WebP</span>
+            <input type="file" id="fileUpload" accept="image/*" hidden>
+          </label>
+        </div>
+
+        <!-- Camera Modal -->
+        <div id="cameraModal" class="modal" hidden>
+          <div class="modal-backdrop" data-close="cameraModal"></div>
+          <div class="modal-content camera-modal">
+            <div class="modal-header">
+              <h2>Capture Receipt</h2>
+              <button class="btn-icon" data-close="cameraModal" aria-label="Close">✕</button>
+            </div>
+            <div class="camera-container">
+              <video id="cameraVideo" autoplay playsinline muted></video>
+              <canvas id="cameraCanvas" hidden></canvas>
+              <div id="cameraPreview" class="camera-preview" hidden>
+                <img id="previewImage" alt="Captured receipt">
+              </div>
+            </div>
+            <div class="camera-controls">
+              <button class="btn secondary" id="btnSwitchCamera" hidden>Flip Camera</button>
+              <button class="btn primary" id="btnCapture">Capture</button>
+              <button class="btn secondary" id="btnRetake" hidden>Retake</button>
+              <button class="btn primary" id="btnUsePhoto" hidden>Use Photo</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Receipt Review -->
+        <div id="receiptReview" class="card receipt-review" hidden>
+          <div class="receipt-preview-row">
+            <img id="receiptThumb" class="receipt-thumb" alt="Receipt">
+            <div class="receipt-meta">
+              <div class="form-group">
+                <label for="merchantName">Merchant / Store</label>
+                <input type="text" id="merchantName" placeholder="e.g. Walmart, Starbucks">
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="receiptDate">Date</label>
+                  <input type="date" id="receiptDate">
+                </div>
+                <div class="form-group">
+                  <label for="receiptTotal">Total</label>
+                  <input type="number" id="receiptTotal" step="0.01" min="0" placeholder="0.00">
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div id="ocrStatus" class="ocr-status" hidden>
+            <div class="spinner"></div>
+            <span>Reading receipt…</span>
+          </div>
+
+          <div class="items-section">
+            <div class="items-header">
+              <h3>Line Items</h3>
+              <button class="btn small" id="btnAddItem">+ Add Item</button>
+            </div>
+            <div id="itemsList" class="items-list"></div>
+          </div>
+
+          <div class="form-group">
+            <label for="receiptNotes">Notes</label>
+            <textarea id="receiptNotes" rows="2" placeholder="Optional notes…"></textarea>
+          </div>
+
+          <div class="form-actions">
+            <button class="btn secondary" id="btnCancelReceipt">Cancel</button>
+            <button class="btn primary" id="btnSaveToRecordTab">Open in Record Tab</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Records (named tabs) -->
+      <section id="tab-records" class="tab-panel" role="tabpanel" hidden>
+        <div class="record-tabs-bar">
+          <div class="record-tabs-scroll" id="recordTabsList" role="tablist"></div>
+          <button type="button" class="record-tab-add" id="btnNewRecordTab" title="New record tab">+</button>
+        </div>
+
+        <div class="card record-form-card">
+          <div class="type-toggle" role="group" aria-label="Record type">
+            <button type="button" class="type-toggle-btn active" data-type="expense">Expense (−)</button>
+            <button type="button" class="type-toggle-btn" data-type="amount">Amount (+)</button>
+          </div>
+
+          <div id="recordReceiptPreview" class="record-receipt-preview" hidden>
+            <img id="recordReceiptImg" alt="Receipt attachment">
+            <button type="button" class="btn small secondary" id="btnRemoveReceipt">Remove image</button>
+          </div>
+
+          <form id="recordForm" class="form">
+            <div class="form-group">
+              <label for="recordSource">Source <span class="optional">(optional)</span></label>
+              <input type="text" id="recordSource" placeholder="e.g. Salary, Walmart, Client payment">
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label for="recordDate">Date</label>
+                <input type="date" id="recordDate" required>
+              </div>
+              <div class="form-group">
+                <label for="recordAmount">Amount <span class="optional">(optional)</span></label>
+                <input type="number" id="recordAmount" step="0.01" min="0" placeholder="0.00">
+              </div>
+            </div>
+
+            <div class="items-section">
+              <div class="items-header">
+                <h3>Items <span class="optional">(optional)</span></h3>
+                <button type="button" class="btn small" id="btnAddRecordItem">+ Add Item</button>
+              </div>
+              <div id="recordItemsList" class="items-list"></div>
+            </div>
+
+            <div class="form-group">
+              <label for="recordNotes">Notes <span class="optional">(optional)</span></label>
+              <textarea id="recordNotes" rows="2" placeholder="Optional notes…"></textarea>
+            </div>
+
+            <div class="form-actions record-form-actions">
+              <button type="button" class="btn danger" id="btnCloseRecordTab">Close Tab</button>
+              <button type="submit" class="btn primary" id="btnSaveRecord">Save Record</button>
+            </div>
+          </form>
+        </div>
+
+        <div class="card">
+          <h2>Recently Saved</h2>
+          <div id="recentRecordsList" class="activity-list">
+            <p class="empty-state">No records saved yet.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- History -->
+      <section id="tab-history" class="tab-panel" role="tabpanel" hidden>
+        <div class="history-filters">
+          <select id="filterType">
+            <option value="all">All Transactions</option>
+            <option value="expense">Expenses Only</option>
+            <option value="amount">Amount Only</option>
+          </select>
+          <input type="search" id="searchTransactions" placeholder="Search…">
+        </div>
+        <div id="historyList" class="history-list">
+          <p class="empty-state">No transactions yet.</p>
+        </div>
+      </section>
+    </main>
+
+    <!-- Transaction Detail Modal -->
+    <div id="detailModal" class="modal" hidden>
+      <div class="modal-backdrop" data-close="detailModal"></div>
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2 id="detailTitle">Transaction</h2>
+          <button class="btn-icon" data-close="detailModal" aria-label="Close">✕</button>
+        </div>
+        <div id="detailBody" class="detail-body"></div>
+        <div class="modal-footer">
+          <button class="btn danger" id="btnDeleteTransaction">Delete</button>
+          <button class="btn secondary" data-close="detailModal">Close</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Grok Settings Modal -->
+    <div id="settingsModal" class="modal" hidden>
+      <div class="modal-backdrop" data-close="settingsModal"></div>
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2>Grok AI Settings</h2>
+          <button class="btn-icon" data-close="settingsModal" aria-label="Close">✕</button>
+        </div>
+        <div class="settings-body">
+          <div id="grokStatus" class="grok-status">
+            <span class="grok-status-dot"></span>
+            <span id="grokStatusText">Checking…</span>
+          </div>
+          <p class="settings-hint">
+            <strong>Easy setup:</strong> close the browser, double-click <code>setup-grok.bat</code> in the app folder, paste your key, then run <code>start.bat</code> again.
+          </p>
+          <p class="settings-hint">
+            Or paste your key here — get one free at
+            <a href="https://console.x.ai/team/default/api-keys" target="_blank" rel="noopener">console.x.ai → API Keys</a>.
+          </p>
+          <div class="form-group">
+            <label for="grokApiKey">xAI API Key</label>
+            <input type="password" id="grokApiKey" placeholder="xai-…" autocomplete="off">
+          </div>
+          <p class="settings-note">Stored locally in <code>config.local.json</code> on your machine only.</p>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn secondary" data-close="settingsModal">Cancel</button>
+          <button type="button" class="btn primary" id="btnSaveGrokKey">Save & Connect</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Toast -->
+    <div id="toast" class="toast" hidden></div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+  <script src="js/storage.js"></script>
+  <script src="js/grok-vision.js"></script>
+  <script src="js/receipt-parser.js"></script>
+  <script src="js/camera.js"></script>
+  <script src="js/record-tabs.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
