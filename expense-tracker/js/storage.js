@@ -93,13 +93,21 @@ const Storage = {
     });
   },
 
-  async getSummary() {
-    const all = await this.getAll();
+  filterByDateRange(transactions, startDate, endDate) {
+    return transactions.filter((t) => {
+      if (!t.date) return false;
+      if (startDate && t.date < startDate) return false;
+      if (endDate && t.date > endDate) return false;
+      return true;
+    });
+  },
+
+  computeSummary(transactions) {
     let totalAmount = 0;
     let totalExpenses = 0;
     const categories = {};
 
-    for (const t of all) {
+    for (const t of transactions) {
       if (t.type === 'amount' || t.type === 'income') {
         totalAmount += t.total ?? t.amount ?? 0;
       } else {
@@ -121,7 +129,15 @@ const Storage = {
       totalExpenses,
       balance: totalAmount - totalExpenses,
       categories,
-      count: all.length,
+      count: transactions.length,
     };
+  },
+
+  async getSummary({ startDate, endDate } = {}) {
+    const all = await this.getAll();
+    const filtered = (startDate || endDate)
+      ? this.filterByDateRange(all, startDate, endDate)
+      : all;
+    return this.computeSummary(filtered);
   },
 };
