@@ -3,9 +3,13 @@ const App = {
   selectedTransactionId: null,
   _syncingForm: false,
 
+  _editingDashboardId: null,
+
   async init() {
     RecordTabs.load();
+    DashboardTabs.load();
     this.setupTabs();
+    this.setupDashboardTabs();
     this.setupCamera();
     this.setupFileUpload();
     this.setupReceiptForm();
@@ -42,12 +46,172 @@ const App = {
       p.hidden = !active;
     });
 
+    if (tabId === 'dashboard') {
+      this.renderDashboardTabs();
+      this.refresh();
+    }
     if (tabId === 'history') this.renderHistory();
     if (tabId === 'records') {
       this.renderRecordTabs();
       this.loadRecordForm();
       this.renderRecentRecords();
     }
+  },
+
+  setupDashboardTabs() {
+    document.getElementById('btnNewDashboardTab').addEventListener('click', () => {
+      this.openDashboardModal();
+    });
+
+    document.getElementById('dashboardPreset').addEventListener('change', (e) => {
+      document.getElementById('dashboardCustomDates').hidden = e.target.value !== 'custom';
+    });
+
+    document.getElementById('dashboardForm').addEventListener('submit', (e) => {
+      e.preventDefault();
+      this.saveDashboardTab();
+    });
+  },
+
+  openDashboardModal(editId = null) {
+    this._editingDashboardId = editId;
+    const modal = document.getElementById('dashboardModal');
+    const title = document.getElementById('dashboardModalTitle');
+
+    if (editId) {
+      const tab = DashboardTabs.tabs.find((t) => t.id === editId);
+      if (!tab) return;
+      title.textContent = 'Edit Dashboard';
+      document.getElementById('dashboardName').value = tab.name;
+      document.getElementById('dashboardPreset').value = tab.preset || 'custom';
+      const range = DashboardTabs.resolveRange(tab);
+      document.getElementById('dashboardStart').value = range.startDate || '';
+      document.getElementById('dashboardEnd').value = range.endDate || '';
+    } else {
+      title.textContent = 'New Dashboard';
+      document.getElementById('dashboardName').value = '';
+      document.getElementById('dashboardPreset').value = 'thisMonth';
+      const range = DashboardTabs.monthRange(new Date().getFullYear(), new Date().getMonth() + 1);
+      document.getElementById('dashboardStart').value = range.startDate;
+      document.getElementById('dashboardEnd').value = range.endDate;
+    }
+
+    document.getElementById('dashboardCustomDates').hidden =
+      document.getElementById('dashboardPreset').value !== 'custom';
+    modal.hidden = false;
+  },
+
+  saveDashboardTab() {
+    const name = document.getElementById('dashboardName').value.trim();
+    const preset = document.getElementById('dashboardPreset').value;
+    const startDate = document.getElementById('dashboardStart').value || null;
+    const endDate = document.getElementById('dashboardEnd').value || null;
+
+    if (!name) {
+      this.toast('Enter a tab name.', 'error');
+      return;
+    }
+
+    if (preset === 'custom' && (!startDate || !endDate)) {
+      this.toast('Set both start and end dates for a custom range.', 'error');
+      return;
+    }
+
+    if (preset === 'custom' && startDate > endDate) {
+      this.toast('Start date must be before end date.', 'error');
+      return;
+    }
+
+    const fields = {
+      name,
+      preset,
+      startDate: preset === 'custom' ? startDate : null,
+      endDate: preset === 'custom' ? endDate : null,
+    };
+
+    if (this._editingDashboardId) {
+      DashboardTabs.updateTab(this._editingDashboardId, fields);
+      this.toast('Dashboard updated', 'success');
+    } else {
+      DashboardTabs.addTab(DashboardTabs.createEmpty(name, preset, fields.startDate, fields.endDate));
+      this.toast('Dashboard tab created', 'success');
+    }
+
+    this._editingDashboardId = null;
+    this.closeModal('dashboardModal');
+    this.renderDashboardTabs();
+    this.refresh();
+  },
+
+  renderDashboardTabs() {
+    const container = document.getElementById('dashboardTabsList');
+    container.innerHTML = DashboardTabs.tabs.map((tab) => {
+      const active = tab.id === DashboardTabs.activeId;
+      return `
+        <button type="button"
+          class="dashboard-tab ${active ? 'active' : ''}"
+          data-id="${tab.id}"
+          role="tab"
+          aria-selected="${active}"
+          title="Double-click to rename · click ✎ to edit period">
+          <span class="dashboard-tab-icon">📊</span>
+          <span class="dashboard-tab-name">${this.escape(tab.name)}</span>
+          <span class="dashboard-tab-edit" data-edit-id="${tab.id}" title="Edit period">✎</span>
+          ${DashboardTabs.tabs.length > 1 ? `<span class="dashboard-tab-close" data-close-id="${tab.id}" title="Close tab">×</span>` : ''}
+        </button>
+      `;
+    }).join('');
+
+    const label = document.getElementById('dashboardPeriodLabel');
+    const active = DashboardTabs.getActive();
+    if (active && label) {
+      label.textContent = DashboardTabs.formatRangeLabel(active);
+    }
+
+    container.querySelectorAll('.dashboard-tab').forEach((el) => {
+      el.addEventListener('click', (e) => {
+        if (e.target.classList.contains('dashboard-tab-close') || e.target.classList.contains('dashboard-tab-edit')) return;
+        DashboardTabs.setActive(el.dataset.id);
+        this.renderDashboardTabs();
+        this.refresh();
+      });
+
+      el.addEventListener('dblclick', (e) => {
+        if (e.target.classList.contains('dashboard-tab-close') || e.target.classList.contains('dashboard-tab-edit')) return;
+        const tab = DashboardTabs.tabs.find((t) => t.id === el.dataset.id);
+        if (!tab) return;
+        const newName = prompt('Rename dashboard tab:', tab.name);
+        if (newName === null || !newName.trim()) return;
+        DashboardTabs.renameTab(tab.id, newName.trim());
+        this.renderDashboardTabs();
+      });
+    });
+
+    container.querySelectorAll('.dashboard-tab-edit').forEach((el) => {
+      el.addEventListener('click', (e) => {
+        e.stopPropagation();
+        this.openDashboardModal(el.dataset.editId);
+      });
+    });
+
+    container.querySelectorAll('.dashboard-tab-close').forEach((el) => {
+      el.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (DashboardTabs.tabs.length <= 1) {
+          this.toast('Keep at least one dashboard tab.', 'error');
+          return;
+        }
+        if (!confirm('Delete this dashboard tab?')) return;
+        DashboardTabs.removeTab(el.dataset.closeId);
+        this.renderDashboardTabs();
+        this.refresh();
+      });
+    });
+  },
+
+  getActiveDashboardRange() {
+    const tab = DashboardTabs.getActive();
+    return tab ? DashboardTabs.resolveRange(tab) : { startDate: null, endDate: null };
   },
 
   setupRecordTabs() {
@@ -630,11 +794,14 @@ const App = {
   },
 
   async refresh() {
-    const summary = await Storage.getSummary();
+    const { startDate, endDate } = this.getActiveDashboardRange();
+    const summary = await Storage.getSummary({ startDate, endDate });
     const all = await Storage.getAll();
+    const filtered = Storage.filterByDateRange(all, startDate, endDate);
 
+    this.renderDashboardTabs();
     this.renderBalance(summary);
-    this.renderRecentActivity(all.slice(0, 5));
+    this.renderRecentActivity(filtered.slice(0, 5));
     this.renderCategoryChart(summary.categories);
   },
 
@@ -652,7 +819,7 @@ const App = {
     const entries = Object.entries(categories).sort((a, b) => b[1] - a[1]);
 
     if (entries.length === 0) {
-      container.innerHTML = '<p class="empty-state">No expenses yet. Add a record to get started.</p>';
+      container.innerHTML = '<p class="empty-state">No expenses in this period.</p>';
       return;
     }
 
@@ -677,7 +844,7 @@ const App = {
   renderRecentActivity(transactions) {
     const container = document.getElementById('recentActivity');
     if (transactions.length === 0) {
-      container.innerHTML = '<p class="empty-state">No transactions yet.</p>';
+      container.innerHTML = '<p class="empty-state">No transactions in this period.</p>';
       return;
     }
     container.innerHTML = transactions.map((t) => this.activityItemHtml(t)).join('');
