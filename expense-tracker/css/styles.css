@@ -810,6 +810,107 @@ textarea {
   }
 }
 
+/* Dashboard period tabs */
+.dashboard-tabs-bar {
+  display: flex;
+  align-items: stretch;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.5rem;
+}
+
+.dashboard-tabs-scroll {
+  display: flex;
+  gap: 0.35rem;
+  overflow-x: auto;
+  flex: 1;
+  scrollbar-width: thin;
+}
+
+.dashboard-tab {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.45rem 0.65rem;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  font-family: var(--font);
+  font-size: 0.8rem;
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.dashboard-tab:hover {
+  background: var(--bg-elevated);
+  color: var(--text);
+}
+
+.dashboard-tab.active {
+  background: rgba(56, 189, 248, 0.12);
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.dashboard-tab-icon {
+  font-size: 0.9rem;
+}
+
+.dashboard-tab-edit,
+.dashboard-tab-close {
+  width: 18px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  font-size: 0.85rem;
+  line-height: 1;
+  opacity: 0.55;
+}
+
+.dashboard-tab-edit:hover {
+  opacity: 1;
+  background: rgba(56, 189, 248, 0.2);
+  color: var(--primary);
+}
+
+.dashboard-tab-close:hover {
+  opacity: 1;
+  background: rgba(239, 68, 68, 0.2);
+  color: var(--danger);
+}
+
+.dashboard-tab-add {
+  width: 36px;
+  flex-shrink: 0;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 1.25rem;
+  cursor: pointer;
+}
+
+.dashboard-tab-add:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.dashboard-period-label {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin-bottom: 0.85rem;
+  padding-left: 0.15rem;
+}
+
 /* Record tabs */
 .record-tabs-bar {
   display: flex;
